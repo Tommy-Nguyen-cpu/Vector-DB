@@ -6,9 +6,7 @@ from uuid import uuid4
 from schemas.text_chunk import TextChunk
 from schemas.document import Document
 from schemas.library import Library
-
-import cohere
-co = cohere.ClientV2(api_key="")
+from utils.mathUtils import cosine_similarity
 
 app = FastAPI()
 
@@ -79,20 +77,30 @@ def delete_chunk_from_library(library_id: str, chunk_id: str):
 
     return {"detail": "Chunk deleted"}
 
-def TestEmbedding():
-    # get the embeddings
-    phrases = ["i love soup", "soup is my favorite", "london is far away"]
-    model = "embed-v4.0"
-    input_type = "search_query"
-    res = co.embed(
-        texts=phrases,
-        model=model,
-        input_type=input_type,
-        output_dimension=1024,
-        embedding_types=["float"],
-    )
-    (soup1, soup2, london) = res.embeddings
-    print(f"soup1: {soup1}\n\nsoup2: {soup2}\n\nlondon: {london}")
+@app.post("/libraries/{library_id}/search", response_model=List[SimilarChunk])
+def search_chunks_from_text(
+    library_id: str,
+    request: QueryRequest = Body(...)
+):
+    library = libraries.get(library_id)
+    if not library:
+        raise HTTPException(status_code=404, detail="Library not found")
 
-if __name__ == '__main__':
-    TestEmbedding()
+    all_chunks = []
+    for doc in library.documents:
+        all_chunks.extend(doc.chunks)
+
+    if not all_chunks:
+        raise HTTPException(status_code=400, detail="No chunks available in library")
+
+    query_embedding = embed_text(request.query)
+
+    similarities = [
+        (chunk, cosine_similarity(query_embedding, chunk.embedding))
+        for chunk in all_chunks
+    ]
+
+    top_chunks = sorted(similarities, key=lambda x: x[1], reverse=True)[:request.top_k]
+
+    return [{"chunk": chunk, "similarity": sim} for chunk, sim in top_chunks]
+
