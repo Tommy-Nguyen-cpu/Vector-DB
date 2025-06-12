@@ -3,9 +3,12 @@ from pydantic import BaseModel, Field
 from typing import List, Dict
 from uuid import uuid4
 
-from schemas.chunk import Chunk
+from schemas.text_chunk import TextChunk
 from schemas.document import Document
 from schemas.library import Library
+
+import cohere
+co = cohere.ClientV2(api_key="")
 
 app = FastAPI()
 
@@ -41,8 +44,8 @@ def delete_library(library_id: str):
     del libraries[library_id]
     return {"detail": "Library deleted"}
 
-@app.post("/libraries/{library_id}/chunks", response_model=Chunk)
-def add_chunk_to_library(library_id: str, chunk: Chunk):
+@app.post("/libraries/{library_id}/chunks", response_model=TextChunk)
+def add_chunk_to_library(library_id: str, chunk: TextChunk):
     library = libraries.get(library_id)
     if not library:
         raise HTTPException(status_code=404, detail="Library not found")
@@ -75,3 +78,21 @@ def delete_chunk_from_library(library_id: str, chunk_id: str):
         raise HTTPException(status_code=404, detail="Chunk not found")
 
     return {"detail": "Chunk deleted"}
+
+def TestEmbedding():
+    # get the embeddings
+    phrases = ["i love soup", "soup is my favorite", "london is far away"]
+    model = "embed-v4.0"
+    input_type = "search_query"
+    res = co.embed(
+        texts=phrases,
+        model=model,
+        input_type=input_type,
+        output_dimension=1024,
+        embedding_types=["float"],
+    )
+    (soup1, soup2, london) = res.embeddings
+    print(f"soup1: {soup1}\n\nsoup2: {soup2}\n\nlondon: {london}")
+
+if __name__ == '__main__':
+    TestEmbedding()

@@ -2,7 +2,7 @@ from uuid import uuid4
 from typing import List, Dict
 from pydantic import BaseModel, Field
 
-from document import Document
+from .document import Document
 
 class Library(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid4()))
