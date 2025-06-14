@@ -14,6 +14,9 @@ class BaseEmbedder(ABC):
 
 class CohereEmbedder(BaseEmbedder):
     def __init__(self, api_key : str = ""):
+        '''
+        An embedding class using cohere for embedding text.
+        '''
         super().__init__(api_key, "embed-v4.0", "search_query")
         self.co = cohere.ClientV2(api_key=self.api_key)
     
@@ -30,6 +33,9 @@ class CohereEmbedder(BaseEmbedder):
 
 class SentenceTransformerEmbedder(BaseEmbedder):
     def __init__(self, model = "BAAI/bge-small-en-v1.5"):
+        '''
+        Uses sentence_transformers to embed text instead of cohere.
+        '''
         super().__init__(model = model)
         self.encoder = SentenceTransformer(model)
     

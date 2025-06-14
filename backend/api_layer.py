@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Path
+from fastapi import FastAPI, HTTPException, Path, Body
 from pydantic import BaseModel, Field
 from typing import List, Dict
 from uuid import uuid4
@@ -7,12 +7,19 @@ from schemas.text_chunk import TextChunk
 from schemas.document import Document
 from schemas.library import Library
 from utils.mathUtils import cosine_similarity
+from utils.embedder import SentenceTransformerEmbedder
+
+from api_requests.query_request import QueryRequest
 
 app = FastAPI()
 
 # --- In-memory storage ---
 
 libraries: Dict[str, Library] = {}
+
+# --- Models ---
+
+embedder = SentenceTransformerEmbedder()
 
 # --- API Routes ---
 
@@ -44,6 +51,8 @@ def delete_library(library_id: str):
 
 @app.post("/libraries/{library_id}/chunks", response_model=TextChunk)
 def add_chunk_to_library(library_id: str, chunk: TextChunk):
+    chunk.embeddings = embedder.embed(chunk.text) # Embed the text for ease of use later on.
+
     library = libraries.get(library_id)
     if not library:
         raise HTTPException(status_code=404, detail="Library not found")
@@ -77,7 +86,7 @@ def delete_chunk_from_library(library_id: str, chunk_id: str):
 
     return {"detail": "Chunk deleted"}
 
-@app.post("/libraries/{library_id}/search", response_model=List[SimilarChunk])
+@app.post("/libraries/{library_id}/search", response_model=List[TextChunk])
 def search_chunks_from_text(
     library_id: str,
     request: QueryRequest = Body(...)
@@ -93,7 +102,7 @@ def search_chunks_from_text(
     if not all_chunks:
         raise HTTPException(status_code=400, detail="No chunks available in library")
 
-    query_embedding = embed_text(request.query)
+    query_embedding = embedder.embed(request.query)
 
     similarities = [
         (chunk, cosine_similarity(query_embedding, chunk.embedding))
@@ -104,3 +113,10 @@ def search_chunks_from_text(
 
     return [{"chunk": chunk, "similarity": sim} for chunk, sim in top_chunks]
 
+if __name__ == '__main__':
+    print("Initializing model...")
+    print("model initialized.")
+
+    print("Encoding text...")
+    embeddings = embedder.embed(["testing"])
+    print(f"{embeddings}")
