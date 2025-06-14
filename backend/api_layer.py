@@ -3,13 +3,14 @@ from pydantic import BaseModel, Field
 from typing import List, Dict
 from uuid import uuid4
 
-from schemas.text_chunk import TextChunk
-from schemas.document import Document
-from schemas.library import Library
-from utils.mathUtils import cosine_similarity
-from utils.embedder import SentenceTransformerEmbedder
+import Common
+from Common.schemas.text_chunk import TextChunk
+from Common.schemas.document import Document
+from Common.schemas.library import Library
+from .utils.mathUtils import cosine_similarity
+from .utils.embedder import SentenceTransformerEmbedder
 
-from api_requests.query_request import QueryRequest
+from .api_requests.query_request import QueryRequest
 
 app = FastAPI()
 
