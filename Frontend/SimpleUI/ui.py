@@ -20,7 +20,7 @@ with gr.Blocks() as demo:
     def render_hierarchy(curr_lib_name, libraries):
         # Add a button for each library
         for lib_id, docs in libraries.items():
-            gr.Markdown(f"## Library: `{curr_lib_name}`")
+            gr.Markdown(f"## Library: `{global_libraries[lib_id].metadata["name"]}`")
             doc_name = gr.TextArea(label = "New document name.")
             lib_add_doc = gr.Button("Add Document", elem_id=f"add_doc_{lib_id}")
             
@@ -30,20 +30,20 @@ with gr.Blocks() as demo:
                 doc = Document(metadata={"name" : name})
                 documents[doc.id] = doc
                 global_libraries[lib_id].documents.append(doc)
-                libs[lib_id].append({doc.id: [doc]})
+                libs[lib_id].append({doc.id: []})
                 return libs
 
             # For each document, render its UI
             for doc in docs:
                 for doc_id, chunks in doc.items():
-                    gr.Markdown(f"### Document `{doc_name.value}`")
+                    gr.Markdown(f"### Document `{documents[doc_id].metadata["name"]}`")
                     chunk_name = gr.TextArea(label = "New chunk name.")
                     doc_add_chunk = gr.Button("Add Chunk", elem_id=f"add_chunk_{doc_id}")
 
                     @doc_add_chunk.click(inputs=[chunk_name, state], outputs=[state])
                     def _add_chunk(name, libs, doc_id=doc_id):
                         chunk = TextChunk(metadata={"name" : name})
-                        documents[doc.id].chunks.append(chunk)
+                        documents[doc_id].chunks.append(chunk)
                         for lib_docs in libs.values():
                             for d in lib_docs:
                                 if doc_id in d:
@@ -51,8 +51,11 @@ with gr.Blocks() as demo:
                         return libs
 
                     # Render existing chunks
-                    for idx, _ in enumerate(chunks):
-                        gr.Textbox(label=f"Chunk {idx+1}", lines=2)
+                    for chunk in chunks:
+                        content = gr.Textbox(label=f"Chunk {chunk.metadata["name"]}", lines=2)
+                        @content.submit(inputs=[content])
+                        def update_chunk(text : str, curr_chunk = chunk):
+                            curr_chunk.text = text
 
     save_btn = gr.Button("Save All")
     output = gr.Textbox()
