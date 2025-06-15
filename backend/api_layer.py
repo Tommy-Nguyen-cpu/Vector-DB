@@ -1,9 +1,6 @@
 from fastapi import FastAPI, HTTPException, Path, Body
-from pydantic import BaseModel, Field
 from typing import List, Dict
-from uuid import uuid4
 
-import Common
 from Common.schemas.text_chunk import TextChunk
 from Common.schemas.document import Document
 from Common.schemas.library import Library
