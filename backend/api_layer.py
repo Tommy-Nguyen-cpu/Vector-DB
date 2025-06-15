@@ -23,6 +23,7 @@ embedder = SentenceTransformerEmbedder()
 
 @app.post("/libraries", response_model=Library)
 def create_library(library: Library):
+    print(f"Added new library with name {library.metadata["name"]}")
     libraries[library.id] = library
     return library
 
@@ -55,7 +56,6 @@ def add_chunk_to_library(library_id: str, document_id : str, chunk: TextChunk):
     if not library:
         raise HTTPException(status_code=404, detail="Library not found")
 
-    # For simplicity, we add the chunk to the first document (real logic may vary)
     if not library.documents:
         raise HTTPException(status_code=400, detail="No documents in library to add chunk to")
     

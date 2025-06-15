@@ -1,8 +1,12 @@
 import gradio as gr
+import requests
 
 from Common.schemas.library import Library
 from Common.schemas.document import Document
 from Common.schemas.text_chunk import TextChunk
+
+# API Url
+api_url = "http://127.0.0.1:8000"
 
 # Internal state
 documents : dict[str, Document] = {}
@@ -70,6 +74,12 @@ with gr.Blocks() as demo:
     @save_btn.click(inputs=[state], outputs=[output])
     def save_all(libraries):
         total = sum(len(docs) for docs in libraries.values())
+
+        # TODO: For now, we will literally just add every library that is added via Gradio UI.
+        # In the future, we will add the ability to modify and delete. Will need to account for those scenarios
+        # and call appropriate API as well.
+        for library in global_libraries.values():
+            requests.post(api_url + "/libraries", library.model_dump_json())
         return f"Saving {len(libraries)} libraries and {total} documents."
 
 demo.launch()
