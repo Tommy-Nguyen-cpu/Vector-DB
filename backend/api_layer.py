@@ -47,8 +47,8 @@ def delete_library(library_id: str):
     del libraries[library_id]
     return {"detail": "Library deleted"}
 
-@app.post("/libraries/{library_id}/chunks", response_model=TextChunk)
-def add_chunk_to_library(library_id: str, chunk: TextChunk):
+@app.post("/libraries/{library_id}/{document_id}/chunks", response_model=bool)
+def add_chunk_to_library(library_id: str, document_id : str, chunk: TextChunk):
     chunk.embeddings = embedder.embed(chunk.text) # Embed the text for ease of use later on.
 
     library = libraries.get(library_id)
@@ -59,9 +59,10 @@ def add_chunk_to_library(library_id: str, chunk: TextChunk):
     if not library.documents:
         raise HTTPException(status_code=400, detail="No documents in library to add chunk to")
     
-    # TODO: Replace logic with real logic here.
-    library.documents[0].chunks.append(chunk)
-    return chunk
+    for document in library.documents:
+        if document_id == document.id:
+            return True
+    return False
 
 @app.delete("/libraries/{library_id}/chunks/{chunk_id}")
 def delete_chunk_from_library(library_id: str, chunk_id: str):
@@ -111,10 +112,10 @@ def search_chunks_from_text(
 
     return [{"chunk": chunk, "similarity": sim} for chunk, sim in top_chunks]
 
-if __name__ == '__main__':
-    print("Initializing model...")
-    print("model initialized.")
+# if __name__ == '__main__':
+#     print("Initializing model...")
+#     print("model initialized.")
 
-    print("Encoding text...")
-    embeddings = embedder.embed(["testing"])
-    print(f"{embeddings}")
+#     print("Encoding text...")
+#     embeddings = embedder.embed(["testing"])
+#     print(f"{embeddings}")
