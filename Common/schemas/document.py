@@ -8,3 +8,5 @@ class Document(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid4()))
     chunks : List[TextChunk] = Field(default = [], description="Chunks of text within this document.")
     metadata: Dict[str, str]
+    class Config:
+        orm_mode = True

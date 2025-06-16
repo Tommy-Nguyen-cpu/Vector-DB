@@ -117,3 +117,8 @@ if __name__ == '__main__':
     print("Starting db...")
     db = DB()
     print("Finished db start up!")
+
+    json = Library(metadata={}).model_dump_json(exclude=["documents"])
+    print(f"json: {json}")
+    db.execute_proc(DB.construct_sql_path("sql/procs", "pr_batch_insert_libraries.sql"), [json])
+    print(db.fetch("SELECT * FROM libraries;"))
