@@ -6,6 +6,7 @@ from Common.schemas.document import Document
 from Common.schemas.library import Library
 from .utils.mathUtils import cosine_similarity
 from .utils.embedder import SentenceTransformerEmbedder
+from .database.database_obj import DB
 
 from .api_requests.query_request import QueryRequest
 
@@ -112,10 +113,7 @@ def search_chunks_from_text(
 
     return [{"chunk": chunk, "similarity": sim} for chunk, sim in top_chunks]
 
-# if __name__ == '__main__':
-#     print("Initializing model...")
-#     print("model initialized.")
-
-#     print("Encoding text...")
-#     embeddings = embedder.embed(["testing"])
-#     print(f"{embeddings}")
+if __name__ == '__main__':
+    print("Starting db...")
+    db = DB()
+    print("Finished db start up!")
