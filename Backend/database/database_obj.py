@@ -1,13 +1,17 @@
 import sqlite3
+import os
 
 class DB():
+    # Get the directory where this script lives
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
     def __init__(self, vector_db_file = "vector_db.sqlite"):
         self.conn = sqlite3.connect(vector_db_file)
 
         # For now, we will create the tables upon server start up.
-        self.execute_sql_file("Backend/procs/pr_create_libraries_table.sql")
-        self.execute_sql_file("Backend/procs/pr_create_documents_table.sql")
-        self.execute_sql_file("Backend/procs/pr_create_chunks_table.sql")
+        self.execute_sql_file(os.path.join(self.BASE_DIR, "sql/procs", "pr_create_libraries_table.sql"))
+        self.execute_sql_file(os.path.join(self.BASE_DIR, "sql/procs", "pr_create_documents_table.sql"))
+        self.execute_sql_file(os.path.join(self.BASE_DIR, "sql/procs", "pr_create_chunks_table.sql"))
     
     def execute_sql_file(self, file_path: str):
         if not self.is_connection_open():
