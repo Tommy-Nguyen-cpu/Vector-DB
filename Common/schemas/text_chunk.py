@@ -7,5 +7,3 @@ class TextChunk(BaseModel):
     text : str = Field(default = "", description="Text associated with the chunk.")
     embeddings : List[float] = Field(default = [], description="The embedding of the text.")
     metadata: Dict[str, str]
-    class Config:
-        orm_mode = True
