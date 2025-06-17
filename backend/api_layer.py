@@ -114,11 +114,33 @@ def search_chunks_from_text(
     return [{"chunk": chunk, "similarity": sim} for chunk, sim in top_chunks]
 
 if __name__ == '__main__':
+    from Backend.database.handlers.add_chunk_handler import AddChunkHandler
+    from Backend.database.handlers.add_document_handler import AddDocumentHandler
+    from Backend.database.handlers.add_library_handler import AddLibraryHandler
+
     print("Starting db...")
     db = DB()
     print("Finished db start up!")
 
-    json = Library(metadata={"name" : ""})
-    print(f"json: {json}")
-    db.execute_proc("pr_batch_insert_libraries.sql", [(json.id, str(json.metadata))])
-    print(f"Result: {db.fetch('SELECT * FROM libraries;')}")
+    library = Library(metadata={"name" : ""})
+    document = Document(metadata={"name" : ""})
+    chunk = TextChunk(metadata={"name" : ""})
+
+    libraryHandler = AddLibraryHandler(db)
+    libraryHandler.handle_add_library(library)
+    print(f"Library Insert Result: {db.fetch('SELECT * FROM libraries;')}")
+
+    documentHandler = AddDocumentHandler(library.id, db)
+    documentHandler.handle_add_document(document)
+    print(f"Document Insert Result: {db.fetch('SELECT * FROM documents;')}")
+
+    chunkHandler = AddChunkHandler(library.id, document.id, db)
+    chunkHandler.handle_add_chunk(chunk)
+    print(f"Chunk Insert Result: {db.fetch('SELECT * FROM chunks;')}")
+
+
+
+    # json = Library(metadata={"name" : ""})
+    # print(f"json: {json}")
+    # db.execute_proc("pr_batch_insert_libraries.sql", [(json.id, str(json.metadata))])
+    # print(f"Result: {db.fetch('SELECT * FROM libraries;')}")
