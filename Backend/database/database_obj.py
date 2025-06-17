@@ -23,15 +23,15 @@ class DB():
         self.conn.executescript(sql_script)
         self.conn.commit()
     
-    def execute_proc(self, proc_path : str, objects):
+    def execute_proc(self, file_name : str, objects):
+        proc_path = DB.construct_sql_path("sql/procs", file_name)
+
         sql = Path(proc_path).read_text()
-        self.conn.execute(sql, objects)
+        self.conn.executemany(sql, objects)
         self.conn.commit()
     
     def fetch(self, sql_line : str):
-        cursor = self.conn.cursor()
-        cursor.execute(sql_line)
-        return cursor.fetchall()
+        return self.conn.execute(sql_line).fetchall()
     
     def is_connection_open(self):
         '''
