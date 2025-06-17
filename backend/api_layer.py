@@ -8,6 +8,10 @@ from .utils.mathUtils import cosine_similarity
 from .utils.embedder import SentenceTransformerEmbedder
 from .database.database_obj import DB
 
+from Backend.database.handlers.add_chunk_handler import AddChunkHandler
+from Backend.database.handlers.add_document_handler import AddDocumentHandler
+from Backend.database.handlers.add_library_handler import AddLibraryHandler
+
 from .api_requests.query_request import QueryRequest
 
 app = FastAPI()
@@ -15,6 +19,10 @@ app = FastAPI()
 # --- In-memory storage ---
 
 libraries: Dict[str, Library] = {}
+
+# --- DB objects ---
+
+db = DB()
 
 # --- Models ---
 
@@ -26,6 +34,8 @@ embedder = SentenceTransformerEmbedder()
 def create_library(library: Library):
     print(f"Added new library with name {library.metadata["name"]}")
     libraries[library.id] = library
+    libraryHandler = AddLibraryHandler(db)
+    libraryHandler.handle_add_library(library)
     return library
 
 @app.get("/libraries/{library_id}", response_model=Library)
@@ -62,7 +72,11 @@ def add_chunk_to_library(library_id: str, document_id : str, chunk: TextChunk):
     
     for document in library.documents:
         if document_id == document.id:
+            document.chunks.append(chunk)
+            chunkHandler = AddChunkHandler(library.id, document.id, db)
+            chunkHandler.handle_add_chunk(chunk)
             return True
+    
     return False
 
 @app.delete("/libraries/{library_id}/chunks/{chunk_id}")
@@ -114,13 +128,7 @@ def search_chunks_from_text(
     return [{"chunk": chunk, "similarity": sim} for chunk, sim in top_chunks]
 
 if __name__ == '__main__':
-    from Backend.database.handlers.add_chunk_handler import AddChunkHandler
-    from Backend.database.handlers.add_document_handler import AddDocumentHandler
-    from Backend.database.handlers.add_library_handler import AddLibraryHandler
-
-    print("Starting db...")
-    db = DB()
-    print("Finished db start up!")
+    
 
     library = Library(metadata={"name" : ""})
     document = Document(metadata={"name" : ""})
