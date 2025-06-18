@@ -39,6 +39,10 @@ chunkHandler = AddChunkHandler(db)
 def create_library(library: Library):
     print(f"Added new library with name {library.metadata["name"]}")
     libraries[library.id] = library
+
+    for doc in library.documents.values():
+        for chunk in doc.chunks.values():
+            chunk.embeddings = embedder.embed(chunk.text) # Embed the text for ease of use later on.
     
     libraryHandler.handle_add_library(library)
     index_handler.index_library(library)
