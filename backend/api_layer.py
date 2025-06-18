@@ -12,21 +12,24 @@ from Backend.database.handlers.add_chunk_handler import AddChunkHandler
 from Backend.database.handlers.add_document_handler import AddDocumentHandler
 from Backend.database.handlers.add_library_handler import AddLibraryHandler
 
+from Backend.indexing.index_handler import IndexHandler
+
 from .api_requests.query_request import QueryRequest
 
 app = FastAPI()
 
+# --- Models ---
+
+embedder = SentenceTransformerEmbedder()
+
 # --- In-memory storage ---
 
 libraries: Dict[str, Library] = {}
+index_handler : IndexHandler = IndexHandler(embedder)
 
 # --- DB objects ---
 
 db = DB()
-
-# --- Models ---
-
-embedder = SentenceTransformerEmbedder()
 
 # --- API Routes ---
 
@@ -36,6 +39,7 @@ def create_library(library: Library):
     libraries[library.id] = library
     libraryHandler = AddLibraryHandler(db)
     libraryHandler.handle_add_library(library)
+    index_handler.index_library(library)
     return library
 
 @app.get("/libraries/{library_id}", response_model=Library)
@@ -50,6 +54,7 @@ def update_library(library_id: str, updated_library: Library):
     if library_id not in libraries:
         raise HTTPException(status_code=404, detail="Library not found")
     libraries[library_id] = updated_library
+    index_handler.index_library(library)
     return updated_library
 
 @app.delete("/libraries/{library_id}")
@@ -70,6 +75,7 @@ def add_chunk_to_library(library_id: str, document_id : str, chunk: TextChunk):
     if not library.documents:
         raise HTTPException(status_code=400, detail="No documents in library to add chunk to")
     
+    index_handler.index_library(library)
     for document in library.documents:
         if document_id == document.id:
             document.chunks.append(chunk)
@@ -86,13 +92,10 @@ def delete_chunk_from_library(library_id: str, chunk_id: str):
         raise HTTPException(status_code=404, detail="Library not found")
 
     found = False
-    for doc in library.documents:
-        for i, chunk in enumerate(doc.chunks):
-            if chunk.id == chunk_id:
-                del doc.chunks[i]
-                found = True
-                break
-        if found:
+    for _, doc in library.documents.items():
+        if chunk_id in doc.chunks:
+            del doc.chunks[chunk_id]
+            found = True
             break
 
     if not found:
@@ -108,19 +111,17 @@ def search_chunks_from_text(
     library = libraries.get(library_id)
     if not library:
         raise HTTPException(status_code=404, detail="Library not found")
+    
+    ids = index_handler.do_lsh_search(request.query)
 
-    all_chunks = []
-    for doc in library.documents:
-        all_chunks.extend(doc.chunks)
-
-    if not all_chunks:
+    if not ids:
         raise HTTPException(status_code=400, detail="No chunks available in library")
 
     query_embedding = embedder.embed(request.query)
 
     similarities = [
-        (chunk, cosine_similarity(query_embedding, chunk.embedding))
-        for chunk in all_chunks
+        (chunk, cosine_similarity(query_embedding, library.documents[doc_id].chunks[chunk_id].embedding))
+        for doc_id, chunk_id in ids
     ]
 
     top_chunks = sorted(similarities, key=lambda x: x[1], reverse=True)[:request.top_k]
@@ -131,20 +132,31 @@ if __name__ == '__main__':
     
 
     library = Library(metadata={"name" : ""})
-    document = Document(metadata={"name" : ""})
-    chunk = TextChunk(metadata={"name" : ""})
+    for i in range(10):
+        document = Document(metadata={})
+        for n in range(20):
+            chunk = TextChunk(metadata={})
+            chunk.text = f"{i}{n}"
+    create_library(library)
 
-    libraryHandler = AddLibraryHandler(db)
-    libraryHandler.handle_add_library(library)
-    print(f"Library Insert Result: {db.fetch('SELECT * FROM libraries;')}")
+    request = QueryRequest(query = "12", top_k = 5)
+    result = search_chunks_from_text(library.id, request=request)
+    print(f"Final: {result}")
 
-    documentHandler = AddDocumentHandler(library.id, db)
-    documentHandler.handle_add_document(document)
-    print(f"Document Insert Result: {db.fetch('SELECT * FROM documents;')}")
+    # document = Document(metadata={"name" : ""})
+    # chunk = TextChunk(metadata={"name" : ""})
 
-    chunkHandler = AddChunkHandler(library.id, document.id, db)
-    chunkHandler.handle_add_chunk(chunk)
-    print(f"Chunk Insert Result: {db.fetch('SELECT * FROM chunks;')}")
+    # libraryHandler = AddLibraryHandler(db)
+    # libraryHandler.handle_add_library(library)
+    # print(f"Library Insert Result: {db.fetch('SELECT * FROM libraries;')}")
+
+    # documentHandler = AddDocumentHandler(library.id, db)
+    # documentHandler.handle_add_document(document)
+    # print(f"Document Insert Result: {db.fetch('SELECT * FROM documents;')}")
+
+    # chunkHandler = AddChunkHandler(library.id, document.id, db)
+    # chunkHandler.handle_add_chunk(chunk)
+    # print(f"Chunk Insert Result: {db.fetch('SELECT * FROM chunks;')}")
 
 
 
