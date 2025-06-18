@@ -40,4 +40,4 @@ class SentenceTransformerEmbedder(BaseEmbedder):
         self.encoder = SentenceTransformer(model)
     
     def embed(self, texts : list[str]):
-        return self.encoder.encode(texts, normalize_embeddings=True)[0]
+        return self.encoder.encode(texts, normalize_embeddings=True).squeeze().tolist()

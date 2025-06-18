@@ -30,6 +30,8 @@ index_handler : IndexHandler = IndexHandler(embedder)
 # --- DB objects ---
 
 db = DB()
+libraryHandler = AddLibraryHandler(db)
+chunkHandler = AddChunkHandler(db)
 
 # --- API Routes ---
 
@@ -37,7 +39,7 @@ db = DB()
 def create_library(library: Library):
     print(f"Added new library with name {library.metadata["name"]}")
     libraries[library.id] = library
-    libraryHandler = AddLibraryHandler(db)
+    
     libraryHandler.handle_add_library(library)
     index_handler.index_library(library)
     return library
@@ -79,8 +81,7 @@ def add_chunk_to_library(library_id: str, document_id : str, chunk: TextChunk):
     for document in library.documents:
         if document_id == document.id:
             document.chunks.append(chunk)
-            chunkHandler = AddChunkHandler(library.id, document.id, db)
-            chunkHandler.handle_add_chunk(chunk)
+            chunkHandler.handle_add_chunk(document_id, chunk)
             return True
     
     return False
@@ -120,7 +121,7 @@ def search_chunks_from_text(
     query_embedding = embedder.embed(request.query)
 
     similarities = [
-        (chunk, cosine_similarity(query_embedding, library.documents[doc_id].chunks[chunk_id].embedding))
+        (chunk, cosine_similarity(query_embedding, library.documents[doc_id].chunks[chunk_id].embeddings))
         for doc_id, chunk_id in ids
     ]
 
@@ -129,7 +130,6 @@ def search_chunks_from_text(
     return [{"chunk": chunk, "similarity": sim} for chunk, sim in top_chunks]
 
 if __name__ == '__main__':
-    
 
     library = Library(metadata={"name" : ""})
     for i in range(10):
@@ -137,6 +137,8 @@ if __name__ == '__main__':
         for n in range(20):
             chunk = TextChunk(metadata={})
             chunk.text = f"{i}{n}"
+            document.chunks[chunk.id] = chunk
+        library.documents[document.id] = document
     create_library(library)
 
     request = QueryRequest(query = "12", top_k = 5)

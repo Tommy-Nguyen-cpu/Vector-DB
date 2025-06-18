@@ -19,6 +19,7 @@ class LSHIndex:
         self.planes = [[random.gauss(0,1) for _ in range(dim)] for _ in range(self.num_planes)]
 
     def _hash(self, emb: List[float]) -> str:
+        print(emb)
         if not self.planes:
             self._init_planes(len(emb))
         bits = []
@@ -28,7 +29,7 @@ class LSHIndex:
         return ''.join(bits)
 
     def add_chunk(self, doc_id: str, chunk: TextChunk):
-        h = self._hash(chunk.embedding)
+        h = self._hash(chunk.embeddings)
         self.buckets.setdefault(h, []).append((doc_id, chunk.id))
 
     def query_bucket(self, query_emb: List[float]) -> List[Tuple[str, str]]:

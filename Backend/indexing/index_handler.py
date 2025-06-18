@@ -11,9 +11,8 @@ class IndexHandler():
         self.embedder = embedder
 
     def index_library(self, library: Library):
-        for document in library.documents:
-            doc_id = document.metadata.id
-            for chunk in document.chunks:
+        for doc_id, document in library.documents.items():
+            for _, chunk in document.chunks.items():
                 # Add to inverted index (text search)
                 self.inverted.add_chunk(doc_id, chunk)
 
