@@ -66,6 +66,8 @@ def update_library(updated_library: Library):
 def delete_library(library_id: str):
     if library_id not in libraries:
         raise HTTPException(status_code=404, detail="Library not found")
+    
+    index_handler.delete_library(libraries[library_id])
     del libraries[library_id]
     return {"detail": "Library deleted"}
 
@@ -81,7 +83,7 @@ def add_chunk_to_library(library_id: str, document_id : str, chunk: TextChunk):
         raise HTTPException(status_code=400, detail="No documents in library to add chunk to")
     
     index_handler.index_library(library)
-    for doc_id, document in library.documents.items():
+    for _, document in library.documents.items():
         if document_id == document.id:
             document.chunks.setdefault(chunk.id, chunk)
             chunkHandler.handle_add_chunk(document_id, chunk)
@@ -96,8 +98,10 @@ def delete_chunk_from_library(library_id: str, chunk_id: str):
         raise HTTPException(status_code=404, detail="Library not found")
 
     found = False
+
     for _, doc in library.documents.items():
         if chunk_id in doc.chunks:
+            index_handler.delete_chunk(doc.chunks[chunk_id])
             del doc.chunks[chunk_id]
             found = True
             break

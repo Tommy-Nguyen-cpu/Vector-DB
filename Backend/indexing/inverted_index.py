@@ -1,4 +1,6 @@
 from typing import List, Dict, Tuple
+import traceback
+
 from Common.schemas.text_chunk import TextChunk
 
 class InvertedIndex:
@@ -18,3 +20,20 @@ class InvertedIndex:
 
     def search(self, term: str) -> List[Tuple[str, str, str]]:
         return list(self.index.get(term.lower(), [])) # Gets all document and chunk ids associated with a token.
+    
+    def delete_chunk(self, term : str, chunk_id : str) -> bool:
+        try:
+            self.index[term.lower()] = [(lib, doc_id, cid) for lib, doc_id, cid in self.index[term.lower()] if cid != chunk_id]
+            return True
+        except Exception:
+            print (f"Error occurred when trying to delete chunk: {traceback.extract_stack()}")
+            return False
+    
+    def delete_library(self, term : str, library_id : str) -> bool:
+        try:
+            self.index[term.lower()] = [(lib, doc_id, cid) for lib, doc_id, cid in self.index[term.lower()] if lib != library_id]
+            return True
+        except Exception:
+            print (f"Error occurred when trying to delete library: {traceback.extract_stack()}")
+            return False
+        

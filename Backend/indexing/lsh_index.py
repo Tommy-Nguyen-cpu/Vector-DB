@@ -1,7 +1,7 @@
 from typing import List, Dict, Tuple
 import random
 
-from Backend.utils.mathUtils import dot_prod
+from Backend.utils.mathUtils import dot_prod, cosine_similarity
 from Common.schemas.text_chunk import TextChunk
 
 class LSHIndex:
@@ -35,3 +35,30 @@ class LSHIndex:
     def query_bucket(self, query_emb: List[float]) -> List[Tuple[str, str, str]]:
         h = self._hash(query_emb) # Gets the unique identifier for the bucket.
         return self.buckets.get(h, [])
+    
+    def delete_chunk(self, chunk_id : str, embedding : List[float]):
+        hash_code = self._hash(embedding)
+
+        if hash_code in self.buckets:
+            # Filter bucket, remove any content with the specific chunk id.
+            self.buckets[hash_code] = [(lib, doc, cid)
+            for (lib, doc, cid) in self.buckets[hash_code]
+            if cid != chunk_id
+            ]
+        
+            self.clean_up(hash_code)
+    
+    def delete_library(self, library_id : str, embedding : List[float]):
+        hash_code = self._hash(embedding)
+        if hash_code in self.buckets:
+            # Filter bucket, remove any content with the specific chunk id.
+            self.buckets[hash_code] = [(lib, doc, cid)
+            for (lib, doc, cid) in self.buckets[hash_code]
+            if lib != library_id
+            ]
+
+            self.clean_up(hash_code)
+
+    def clean_up(self, hash_code : str):
+        if not self.buckets[hash_code]:
+                del self.buckets[hash_code] # Remove any empty buckets.

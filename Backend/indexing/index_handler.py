@@ -1,8 +1,11 @@
+from typing import List
+
 from Backend.indexing.inverted_index import InvertedIndex
 from Backend.indexing.lsh_index import LSHIndex
 from Backend.utils.embedder import BaseEmbedder
 
 from Common.schemas.library import Library
+from Common.schemas.text_chunk import TextChunk
 
 class IndexHandler():
     def __init__(self, embedder : BaseEmbedder):
@@ -24,3 +27,14 @@ class IndexHandler():
     
     def do_inverted_search(self, query : str):
         return self.inverted.search(query)
+    
+    def delete_chunk(self, chunk : TextChunk):
+        self.lsh.delete_chunk(chunk.id, chunk.embeddings)
+        self.inverted.delete_chunk(chunk.text, chunk.id)
+    
+    # TODO: If we are considering time vs memory, storing the lib and doc ids as a separate hash might be preferred over the for loop.
+    def delete_library(self, library : Library):
+        for _, doc in library.documents.items():
+            for _, chunk in doc.chunks.items():
+                self.lsh.delete_library(library.id, chunk.embeddings)
+                self.inverted.delete_chunk(chunk.text, chunk.id)
