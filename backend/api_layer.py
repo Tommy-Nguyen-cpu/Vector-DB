@@ -62,7 +62,6 @@ def get_library(library_id: str = Path(..., description="ID of the library to re
         raise HTTPException(status_code=404, detail="Library not found")
     return libraries[library_id]
 
-# TODO: Update API so chunks and docs are updated in DB as well. Further, we should be ensuring that any newly added chunks have their embeddings set as well.
 @app.put("/libraries/{library_id}", response_model=Library)
 def update_library(updated_library: Library):
     if library.id not in libraries:
