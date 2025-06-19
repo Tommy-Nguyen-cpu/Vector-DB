@@ -62,12 +62,39 @@ def get_library(library_id: str = Path(..., description="ID of the library to re
         raise HTTPException(status_code=404, detail="Library not found")
     return libraries[library_id]
 
+# TODO: Update API so chunks and docs are updated in DB as well. Further, we should be ensuring that any newly added chunks have their embeddings set as well.
 @app.put("/libraries/{library_id}", response_model=Library)
 def update_library(updated_library: Library):
     if library.id not in libraries:
         raise HTTPException(status_code=404, detail="Library not found")
     libraries[library.id] = updated_library
     index_handler.index_library(library)
+
+    db.execute_proc("pr_batch_update_libraries.sql", [(updated_library.metadata, updated_library.id)])
+
+    updated_docs = []
+    new_docs = []
+    updated_chunks = []
+    new_chunks = []
+    for doc_id, doc in updated_library.documents.items():
+        if doc_id in index_handler.lsh.docs:
+            updated_docs.append((doc.metadata, doc_id))
+        else:
+            new_docs.append((doc.id, library.id, str(doc.metadata)))
+        for cid, chunk in doc.chunks.items():
+            if not chunk.embeddings:
+                new_chunks.append((cid, doc.id, chunk.text, pickle.dumps(chunk.embeddings), str(chunk.metadata)))
+            else:
+                updated_chunks.append((chunk.text, pickle.dumps(chunk.embeddings), str(chunk.metadata), cid))
+    
+    if updated_docs:
+        db.execute_proc("pr_batch_update_documents.sql", updated_docs)
+    if new_docs:
+        documentHandler.handle_add_documents(new_docs)
+    if updated_chunks:
+        db.execute_proc("pr_batch_update_chunks.sql", updated_chunks)
+    if new_chunks:
+        chunkHandler.handle_add_chunks(new_chunks)
     return updated_library
 
 @app.delete("/libraries/{library_id}")

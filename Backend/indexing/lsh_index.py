@@ -12,6 +12,7 @@ class LSHIndex:
         self.num_planes = num_planes
         self.planes: List[List[float]] = [] # Holds all embeddings.
         self.buckets: Dict[str, List[Tuple[str, str]]] = {} # Holds mapping between unique bits to ids.
+        self.docs = set()
 
         # Will initialize planes when first embedding arrives
     
@@ -30,6 +31,7 @@ class LSHIndex:
 
     def add_chunk(self, library_id : str, doc_id: str, chunk: TextChunk):
         h = self._hash(chunk.embeddings)
+        self.docs.add(doc_id)
         self.buckets.setdefault(h, []).append((library_id, doc_id, chunk.id)) # Stores bits as unique identifier in buckets.
 
     def query_bucket(self, query_emb: List[float]) -> List[Tuple[str, str, str]]:
@@ -40,6 +42,11 @@ class LSHIndex:
         hash_code = self._hash(embedding)
 
         if hash_code in self.buckets:
+            for _, doc_id, cid in self.buckets[hash_code]:
+                if cid == chunk_id:
+                    self.docs.remove(doc_id)
+                    break
+
             # Filter bucket, remove any content with the specific chunk id.
             self.buckets[hash_code] = [(lib, doc, cid)
             for (lib, doc, cid) in self.buckets[hash_code]
@@ -51,6 +58,10 @@ class LSHIndex:
     def delete_library(self, library_id : str, embedding : List[float]):
         hash_code = self._hash(embedding)
         if hash_code in self.buckets:
+            for lib_id, doc_id, _ in self.buckets[hash_code]:
+                if lib_id == library_id:
+                    self.docs.remove(doc_id)
+                    break
             # Filter bucket, remove any content with the specific chunk id.
             self.buckets[hash_code] = [(lib, doc, cid)
             for (lib, doc, cid) in self.buckets[hash_code]

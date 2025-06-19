@@ -10,6 +10,7 @@ class InvertedIndex:
     """
     def __init__(self):
         self.index: Dict[str, set] = {} # Keeps track of all unique tokens (words) and the corresponding documents and chunks they reside in.
+        self.docs = set() # Just for our use case in verify if doc exists in API side.
 
     def add_chunk(self, library_id : str, doc_id: str, chunk: TextChunk):
         tokens = chunk.text.lower().split() # Normalize text so casing does not play a major role. Split on per word, since most queries are based on a per-word basis, not sentence level.
@@ -23,6 +24,11 @@ class InvertedIndex:
     
     def delete_chunk(self, term : str, chunk_id : str) -> bool:
         try:
+            # Remove doc id from our set.
+            for _, doc_id, cid in self.index[term.lower()]:
+                if cid == chunk_id:
+                    self.docs.remove(doc_id)
+                    break
             self.index[term.lower()] = [(lib, doc_id, cid) for lib, doc_id, cid in self.index[term.lower()] if cid != chunk_id]
             return True
         except Exception:
@@ -31,6 +37,12 @@ class InvertedIndex:
     
     def delete_library(self, term : str, library_id : str) -> bool:
         try:
+            # Remove doc id from our set.
+            for lib, doc_id, _ in self.index[term.lower()]:
+                if lib == library_id:
+                    self.docs.remove(doc_id)
+                    break
+
             self.index[term.lower()] = [(lib, doc_id, cid) for lib, doc_id, cid in self.index[term.lower()] if lib != library_id]
             return True
         except Exception:
