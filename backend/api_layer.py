@@ -1,3 +1,4 @@
+import pickle
 from fastapi import FastAPI, HTTPException, Path, Body
 from typing import List, Dict, Union
 
@@ -40,11 +41,17 @@ def create_library(library: Library):
     print(f"Added new library with name {library.metadata["name"]}")
     libraries[library.id] = library
 
+    docs = []
+    chunks = []
     for doc in library.documents.values():
+        docs.append((doc.id, library.id, str(doc.metadata)))
         for chunk in doc.chunks.values():
             chunk.embeddings = embedder.embed(chunk.text) # Embed the text for ease of use later on.
+            chunks.append((chunk.id, doc.id, chunk.text, pickle.dumps(chunk.embeddings), str(chunk.metadata)))
     
-    libraryHandler.handle_add_library(library)
+    db.execute_proc("pr_batch_insert_documents.sql", docs)
+    chunkHandler.handle_add_chunks(chunks)
+    libraryHandler.handle_add_libraries([(library.id, str(library.metadata))])
     index_handler.index_library(library)
     return library
 
@@ -68,6 +75,18 @@ def delete_library(library_id: str):
         raise HTTPException(status_code=404, detail="Library not found")
     
     index_handler.delete_library(libraries[library_id])
+
+    doc_ids = []
+    chunk_ids = []
+    for doc_id, doc in libraries[library_id].documents.items():
+        doc_ids.append((doc_id,))
+        for chunk_id in doc.chunks.keys():
+            chunk_ids.append((chunk_id,))
+    
+    db.execute_proc("pr_batch_delete_chunks.sql", chunk_ids)
+    db.execute_proc("pr_batch_delete_documents.sql", doc_ids)
+    db.execute_proc("pr_batch_delete_libraries.sql", [(library_id, )])
+
     del libraries[library_id]
     return {"detail": "Library deleted"}
 
@@ -86,7 +105,7 @@ def add_chunk_to_library(library_id: str, document_id : str, chunk: TextChunk):
     for _, document in library.documents.items():
         if document_id == document.id:
             document.chunks.setdefault(chunk.id, chunk)
-            chunkHandler.handle_add_chunk(document_id, chunk)
+            chunkHandler.handle_add_chunks([(chunk.id, document_id, chunk.text, chunk.embeddings, str(chunk.metadata))])
             return True
     
     return False
@@ -99,6 +118,7 @@ def delete_chunk_from_library(library_id: str, chunk_id: str):
 
     found = False
 
+    db.execute_proc("pr_batch_delete_chunks.sql", [(chunk_id,)])
     for _, doc in library.documents.items():
         if chunk_id in doc.chunks:
             index_handler.delete_chunk(doc.chunks[chunk_id])
@@ -145,7 +165,24 @@ if __name__ == '__main__':
 
     request = QueryRequest(query = "12", top_k = 5)
     result = search_chunks_from_text(request=request)
-    print(f"Final: {result}")
+    # print(f"Final: {result}")
+
+    print("Before deleting.")
+    for ids in index_handler.lsh.buckets.values():
+        print(f"Size: {len(ids)}")
+    
+    print(f"Chunks: {len(db.fetch('SELECT * FROM chunks;'))}")
+    print(f"Library: {len(db.fetch('SELECT * FROM libraries;'))}")
+    print(f"Documents: {len(db.fetch('SELECT * FROM documents;'))}")
+    
+    delete_library(library.id)
+
+    print("after deleting.")
+    for ids in index_handler.lsh.buckets.values():
+        print(f"Size: {len(ids)}")
+    print(f"Chunks: {len(db.fetch('SELECT * FROM chunks;'))}")
+    print(f"Library: {len(db.fetch('SELECT * FROM libraries;'))}")
+    print(f"Documents: {len(db.fetch('SELECT * FROM documents;'))}")
 
     # document = Document(metadata={"name" : ""})
     # chunk = TextChunk(metadata={"name" : ""})
