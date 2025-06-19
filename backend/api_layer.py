@@ -32,6 +32,7 @@ index_handler : IndexHandler = IndexHandler(embedder)
 
 db = DB()
 libraryHandler = AddLibraryHandler(db)
+documentHandler = AddDocumentHandler(db)
 chunkHandler = AddChunkHandler(db)
 
 # --- API Routes ---
@@ -49,9 +50,9 @@ def create_library(library: Library):
             chunk.embeddings = embedder.embed(chunk.text) # Embed the text for ease of use later on.
             chunks.append((chunk.id, doc.id, chunk.text, pickle.dumps(chunk.embeddings), str(chunk.metadata)))
     
-    db.execute_proc("pr_batch_insert_documents.sql", docs)
-    chunkHandler.handle_add_chunks(chunks)
     libraryHandler.handle_add_libraries([(library.id, str(library.metadata))])
+    documentHandler.handle_add_documents(docs)
+    chunkHandler.handle_add_chunks(chunks)
     index_handler.index_library(library)
     return library
 
