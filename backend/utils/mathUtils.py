@@ -8,3 +8,6 @@ def cosine_similarity(vec1: List[float], vec2: List[float]) -> float:
     if np.linalg.norm(a) == 0 or np.linalg.norm(b) == 0:
         return 0.0
     return np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))
+
+def dot_prod(vec1 : List[float], vec2 : List[float]) -> float:
+    return np.dot(np.array(vec1), np.array(vec2))

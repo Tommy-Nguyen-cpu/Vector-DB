@@ -1,5 +1,5 @@
 from fastapi import FastAPI, HTTPException, Path, Body
-from typing import List, Dict
+from typing import List, Dict, Union
 
 from Common.schemas.text_chunk import TextChunk
 from Common.schemas.document import Document
@@ -54,12 +54,11 @@ def get_library(library_id: str = Path(..., description="ID of the library to re
         raise HTTPException(status_code=404, detail="Library not found")
     return libraries[library_id]
 
-# Most of the updating can actually be performed in here, but that might not be what is required.
 @app.put("/libraries/{library_id}", response_model=Library)
-def update_library(library_id: str, updated_library: Library):
-    if library_id not in libraries:
+def update_library(updated_library: Library):
+    if library.id not in libraries:
         raise HTTPException(status_code=404, detail="Library not found")
-    libraries[library_id] = updated_library
+    libraries[library.id] = updated_library
     index_handler.index_library(library)
     return updated_library
 
@@ -82,9 +81,9 @@ def add_chunk_to_library(library_id: str, document_id : str, chunk: TextChunk):
         raise HTTPException(status_code=400, detail="No documents in library to add chunk to")
     
     index_handler.index_library(library)
-    for document in library.documents:
+    for doc_id, document in library.documents.items():
         if document_id == document.id:
-            document.chunks.append(chunk)
+            document.chunks.setdefault(chunk.id, chunk)
             chunkHandler.handle_add_chunk(document_id, chunk)
             return True
     
@@ -108,15 +107,10 @@ def delete_chunk_from_library(library_id: str, chunk_id: str):
 
     return {"detail": "Chunk deleted"}
 
-@app.post("/libraries/{library_id}/search", response_model=List[TextChunk])
+@app.post("/libraries/search", response_model=List[Dict[str, Union[TextChunk, float]]])
 def search_chunks_from_text(
-    library_id: str,
     request: QueryRequest = Body(...)
-):
-    library = libraries.get(library_id)
-    if not library:
-        raise HTTPException(status_code=404, detail="Library not found")
-    
+) -> List[Dict[str, Union[TextChunk, float]]]:  
     ids = index_handler.do_lsh_search(request.query)
 
     if not ids:
@@ -125,8 +119,8 @@ def search_chunks_from_text(
     query_embedding = embedder.embed(request.query)
 
     similarities = [
-        (chunk, cosine_similarity(query_embedding, library.documents[doc_id].chunks[chunk_id].embeddings))
-        for doc_id, chunk_id in ids
+        (libraries[library_id].documents[doc_id].chunks[chunk_id], cosine_similarity(query_embedding, libraries[library_id].documents[doc_id].chunks[chunk_id].embeddings))
+        for library_id, doc_id, chunk_id in ids
     ]
 
     top_chunks = sorted(similarities, key=lambda x: x[1], reverse=True)[:request.top_k]
@@ -146,7 +140,7 @@ if __name__ == '__main__':
     create_library(library)
 
     request = QueryRequest(query = "12", top_k = 5)
-    result = search_chunks_from_text(library.id, request=request)
+    result = search_chunks_from_text(request=request)
     print(f"Final: {result}")
 
     # document = Document(metadata={"name" : ""})

@@ -14,10 +14,10 @@ class IndexHandler():
         for doc_id, document in library.documents.items():
             for _, chunk in document.chunks.items():
                 # Add to inverted index (text search)
-                self.inverted.add_chunk(doc_id, chunk)
+                self.inverted.add_chunk(library.id, doc_id, chunk)
 
                 # Add to vector index (exact vector search)
-                self.lsh.add_chunk(doc_id, chunk)
+                self.lsh.add_chunk(library.id, doc_id, chunk)
 
     def do_lsh_search(self, query : str):
         return self.lsh.query_bucket(self.embedder.embed(query))
