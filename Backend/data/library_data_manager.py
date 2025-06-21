@@ -199,10 +199,6 @@ class LibraryDataManager:
             library.documents[document.id] = document
         self.add_new_library(library)
 
-        request = QueryRequest(query = "12", top_k = 5)
-        result = self.search_chunk_from_text(request=request)
-        # print(f"Final: {result}")
-
         print("Before deleting.")
         for ids in self.index_handler.lsh.buckets.values():
             print(f"Size: {len(ids)}")
@@ -213,6 +209,11 @@ class LibraryDataManager:
         
         newDoc = Document(metadata={})
         library.documents[newDoc.id] = newDoc
+
+        self.add_chunk(library.id, newDoc.id, TextChunk(metadata={}, text="Testing"))
+        print(f"Received chunks: {len(self.get_chunks(library.id))}")
+        print(f"Querying...: {self.search_chunk_from_text(QueryRequest(query = "11", top_k = 5))}")
+        print(f"Received library: {self.get_library(library.id)}")
         self.update_library(library)
         self.delete_library(library.id)
 
