@@ -1,4 +1,4 @@
-from typing import Dict
+from typing import Dict, List
 from fastapi import HTTPException
 import pickle
 
@@ -12,6 +12,7 @@ from Backend.api_requests.query_request import QueryRequest
 from Backend.indexing.index_handler import IndexHandler
 from Backend.utils.embedder import SentenceTransformerEmbedder
 from Backend.utils.mathUtils import cosine_similarity
+from Backend.utils.commonUtils import get_docid_chunk_dict
 
 from Common.schemas.library import Library
 from Common.schemas.document import Document
@@ -41,19 +42,11 @@ class LibraryDataManager:
     def add_new_library(self, library : Library):
         if library.id in self.cache:
             HTTPException(status_code=404, detail="Attempted to add a library that already exists!")
-
-        docs = []
-        chunks = []
-        for doc in library.documents.values():
-            docs.append((doc.id, library.id, str(doc.metadata)))
-            for chunk in doc.chunks.values():
-                chunk.embeddings = self.embedder.embed(chunk.text) # Embed the text for ease of use later on.
-                chunks.append((chunk.id, doc.id, chunk.text, pickle.dumps(chunk.embeddings), str(chunk.metadata)))
         
         self.cache[library.id] = library
         self.libraryHandler.handle_add_libraries([(library.id, str(library.metadata))])
-        self.documentHandler.handle_add_documents(docs)
-        self.chunkHandler.handle_add_chunks(chunks)
+        self.documentHandler.handle_add_documents(library.id, library.documents.values())
+        self.chunkHandler.handle_add_chunks(self.embedder, get_docid_chunk_dict(library.documents.values()))
         self.index_handler.index_library(library)
         return library
     
@@ -70,15 +63,15 @@ class LibraryDataManager:
         updated_docs = []
         new_docs = []
         updated_chunks = []
-        new_chunks = []
+        new_chunks : Dict[str, List[TextChunk]] = {}
         for doc_id, doc in updated_library.documents.items():
             if doc_id in self.index_handler.lsh.docs:
-                updated_docs.append((doc.metadata, doc_id))
+                updated_docs.append((str(doc.metadata), doc_id))
             else:
-                new_docs.append((doc.id, updated_library.id, str(doc.metadata)))
+                new_docs.append(doc)
             for cid, chunk in doc.chunks.items():
                 if not chunk.embeddings:
-                    new_chunks.append((cid, doc.id, chunk.text, pickle.dumps(chunk.embeddings), str(chunk.metadata)))
+                    new_chunks.setdefault(doc_id, []).append(chunk)
                 else:
                     updated_chunks.append((chunk.text, pickle.dumps(chunk.embeddings), str(chunk.metadata), cid))
         
@@ -89,15 +82,15 @@ class LibraryDataManager:
         self.index_handler.index_library(updated_library)
 
         # Update DB.
-        self.db.execute_proc("pr_batch_update_libraries.sql", [(updated_library.metadata, updated_library.id)])
+        self.db.execute_proc("pr_batch_update_libraries.sql", [(str(updated_library.metadata), updated_library.id)])
         if updated_docs:
             self.db.execute_proc("pr_batch_update_documents.sql", updated_docs)
         if new_docs:
-            self.documentHandler.handle_add_documents(new_docs)
+            self.documentHandler.handle_add_documents(updated_library.id, new_docs)
         if updated_chunks:
             self.db.execute_proc("pr_batch_update_chunks.sql", updated_chunks)
         if new_chunks:
-            self.chunkHandler.handle_add_chunks(new_chunks)
+            self.chunkHandler.handle_add_chunks(self.embedder, new_chunks)
         return updated_library
     
     def delete_library(self, library_id : str):
@@ -110,12 +103,12 @@ class LibraryDataManager:
             doc_ids.append((doc_id,))
             for chunk_id in doc.chunks.keys():
                 chunk_ids.append((chunk_id,))
-        
-        # Update cache.
-        del self.cache[library_id]
 
         # Update vector DB index. We don't want chunks removed to be included in indexing.
         self.index_handler.delete_library(self.cache[library_id])
+
+        # Update cache.
+        del self.cache[library_id]
 
         # Update DB. Delete chunks, then documents, and lastly library to avoid dependency issues.
         self.db.execute_proc("pr_batch_delete_chunks.sql", chunk_ids)
@@ -141,7 +134,7 @@ class LibraryDataManager:
         for _, document in library.documents.items():
             if document_id == document.id:
                 document.chunks.setdefault(chunk.id, chunk)
-                self.chunkHandler.handle_add_chunks([(chunk.id, document_id, chunk.text, chunk.embeddings, str(chunk.metadata))])
+                self.chunkHandler.handle_add_chunks(self.embedder, {document_id : [chunk]})
                 return True
         
         return False
@@ -193,3 +186,40 @@ class LibraryDataManager:
         top_chunks = sorted(similarities, key=lambda x: x[1], reverse=True)[:request.top_k]
 
         return [{"chunk": chunk, "similarity": sim} for chunk, sim in top_chunks]
+    
+    #region Test Code
+    def test_insert(self):
+        library = Library(metadata={"name" : ""})
+        for i in range(10):
+            document = Document(metadata={})
+            for n in range(20):
+                chunk = TextChunk(metadata={})
+                chunk.text = f"{i}{n}"
+                document.chunks[chunk.id] = chunk
+            library.documents[document.id] = document
+        self.add_new_library(library)
+
+        request = QueryRequest(query = "12", top_k = 5)
+        result = self.search_chunk_from_text(request=request)
+        # print(f"Final: {result}")
+
+        print("Before deleting.")
+        for ids in self.index_handler.lsh.buckets.values():
+            print(f"Size: {len(ids)}")
+        
+        print(f"Chunks: {len(self.db.fetch('SELECT * FROM chunks;'))}")
+        print(f"Library: {len(self.db.fetch('SELECT * FROM libraries;'))}")
+        print(f"Documents: {len(self.db.fetch('SELECT * FROM documents;'))}")
+        
+        newDoc = Document(metadata={})
+        library.documents[newDoc.id] = newDoc
+        self.update_library(library)
+        self.delete_library(library.id)
+
+        print("after deleting.")
+        for ids in self.index_handler.lsh.buckets.values():
+            print(f"Size: {len(ids)}")
+        print(f"Chunks: {len(self.db.fetch('SELECT * FROM chunks;'))}")
+        print(f"Library: {len(self.db.fetch('SELECT * FROM libraries;'))}")
+        print(f"Documents: {len(self.db.fetch('SELECT * FROM documents;'))}")
+    #endregion

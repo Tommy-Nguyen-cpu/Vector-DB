@@ -1,5 +1,4 @@
-import pickle
-from fastapi import FastAPI, HTTPException, Path, Body
+from fastapi import FastAPI, Path, Body
 from typing import List, Dict, Union
 
 from Common.schemas.text_chunk import TextChunk
@@ -53,37 +52,7 @@ def search_chunks_from_text(
     return library_manager.search_chunk_from_text(request)
 
 if __name__ == '__main__':
-
-    library = Library(metadata={"name" : ""})
-    for i in range(10):
-        document = Document(metadata={})
-        for n in range(20):
-            chunk = TextChunk(metadata={})
-            chunk.text = f"{i}{n}"
-            document.chunks[chunk.id] = chunk
-        library.documents[document.id] = document
-    create_library(library)
-
-    request = QueryRequest(query = "12", top_k = 5)
-    result = search_chunks_from_text(request=request)
-    # print(f"Final: {result}")
-
-    print("Before deleting.")
-    for ids in index_handler.lsh.buckets.values():
-        print(f"Size: {len(ids)}")
-    
-    print(f"Chunks: {len(db.fetch('SELECT * FROM chunks;'))}")
-    print(f"Library: {len(db.fetch('SELECT * FROM libraries;'))}")
-    print(f"Documents: {len(db.fetch('SELECT * FROM documents;'))}")
-    
-    delete_library(library.id)
-
-    print("after deleting.")
-    for ids in index_handler.lsh.buckets.values():
-        print(f"Size: {len(ids)}")
-    print(f"Chunks: {len(db.fetch('SELECT * FROM chunks;'))}")
-    print(f"Library: {len(db.fetch('SELECT * FROM libraries;'))}")
-    print(f"Documents: {len(db.fetch('SELECT * FROM documents;'))}")
+    library_manager.test_insert()
 
     # document = Document(metadata={"name" : ""})
     # chunk = TextChunk(metadata={"name" : ""})

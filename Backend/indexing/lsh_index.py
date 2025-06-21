@@ -60,7 +60,7 @@ class LSHIndex:
         if hash_code in self.buckets:
             for lib_id, doc_id, _ in self.buckets[hash_code]:
                 if lib_id == library_id:
-                    self.docs.remove(doc_id)
+                    if doc_id in self.docs: self.docs.remove(doc_id)
                     break
             # Filter bucket, remove any content with the specific chunk id.
             self.buckets[hash_code] = [(lib, doc, cid)

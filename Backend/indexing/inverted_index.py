@@ -27,7 +27,7 @@ class InvertedIndex:
             # Remove doc id from our set.
             for _, doc_id, cid in self.index[term.lower()]:
                 if cid == chunk_id:
-                    self.docs.remove(doc_id)
+                    if doc_id in self.docs: self.docs.remove(doc_id)
                     break
             self.index[term.lower()] = [(lib, doc_id, cid) for lib, doc_id, cid in self.index[term.lower()] if cid != chunk_id]
             return True
