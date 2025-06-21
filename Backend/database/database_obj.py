@@ -7,7 +7,7 @@ class DB():
     BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
     def __init__(self, vector_db_file = "vector_db.sqlite"):
-        self.conn = sqlite3.connect(vector_db_file)
+        self.conn = sqlite3.connect(vector_db_file, check_same_thread=False)
 
         # For now, we will create the tables upon server start up.
         self.execute_sql_file(DB.construct_sql_path("sql/startup", "create_libraries_table.sql"))
