@@ -1,5 +1,13 @@
-import gradio as gr
+import streamlit as st
 import requests
+from typing import List
+
+import sys
+from pathlib import Path
+
+# Point at the VectorDB folder two levels above this file
+project_root = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(project_root))
 
 from Common.schemas.library import Library
 from Common.schemas.document import Document
@@ -8,78 +16,158 @@ from Common.schemas.text_chunk import TextChunk
 # API Url
 api_url = "http://127.0.0.1:8000"
 
-# Internal state
-documents : dict[str, Document] = {}
-global_libraries : dict[str, Library] = {}
+# Pydantic-like schemas for input serialization
+# These are simple dicts in this UI
 
-with gr.Blocks() as demo:
-    # State tracking library→docs→chunks
-    state = gr.State({})
-    
-    lib_name = gr.TextArea(label = "New library name.")
-    new_lib_btn = gr.Button("Add Library")
+# REST helpers returning Pydantic models
+API_TIMEOUT = 5
+BASE_HEADERS = {"Content-Type": "application/json"}
+# REST helpers
 
-    # Dynamically render everything based on state
-    @gr.render(inputs=[lib_name, state])
-    def render_hierarchy(curr_lib_name, libraries):
-        # Add a button for each library
-        for lib_id, docs in libraries.items():
-            gr.Markdown(f"## Library: `{global_libraries[lib_id].metadata["name"]}`")
-            doc_name = gr.TextArea(label = "New document name.")
-            lib_add_doc = gr.Button("Add Document", elem_id=f"add_doc_{lib_id}")
-            
-            # When clicked, trigger a change to state
-            @lib_add_doc.click(inputs=[doc_name, state], outputs=[state])
-            def _add_doc(name, libs, lib_id=lib_id):
-                doc = Document(metadata={"name" : name})
-                documents[doc.id] = doc
-                global_libraries[lib_id].documents.append(doc)
-                libs[lib_id].append({doc.id: []})
-                return libs
+# REST helpers
 
-            # For each document, render its UI
-            for doc in docs:
-                for doc_id, chunks in doc.items():
-                    gr.Markdown(f"### Document `{documents[doc_id].metadata["name"]}`")
-                    chunk_name = gr.TextArea(label = "New chunk name.")
-                    doc_add_chunk = gr.Button("Add Chunk", elem_id=f"add_chunk_{doc_id}")
+def fetch_libraries(api_url: str) -> List[Library]:
+    resp = requests.get(f"{api_url}/libraries", timeout=API_TIMEOUT)
+    resp.raise_for_status()
+    return [Library.parse_obj(d) for d in resp.json()]
 
-                    @doc_add_chunk.click(inputs=[chunk_name, state], outputs=[state])
-                    def _add_chunk(name, libs, doc_id=doc_id):
-                        chunk = TextChunk(metadata={"name" : name})
-                        documents[doc_id].chunks.append(chunk)
-                        for lib_docs in libs.values():
-                            for d in lib_docs:
-                                if doc_id in d:
-                                    d[doc_id].append(chunk)
-                        return libs
 
-                    # Render existing chunks
-                    for chunk in chunks:
-                        content = gr.Textbox(label=f"Chunk {chunk.metadata["name"]}", lines=2)
-                        @content.submit(inputs=[content])
-                        def update_chunk(text : str, curr_chunk = chunk):
-                            curr_chunk.text = text
+def create_library(api_url: str, lib: Library) -> Library:
+    resp = requests.post(f"{api_url}/libraries", json=lib.dict(), headers=BASE_HEADERS, timeout=API_TIMEOUT)
+    resp.raise_for_status()
+    return Library.parse_obj(resp.json())
 
-    save_btn = gr.Button("Save All")
-    output = gr.Textbox()
 
-    @new_lib_btn.click(inputs=[lib_name, state], outputs=[state])
-    def add_library(name, libs):
-        library = Library(metadata = {"name" : name})
-        global_libraries[library.id] = library
-        libs[str(library.id)] = []
-        return libs
+def update_library(api_url: str, lib: Library) -> Library:
+    resp = requests.put(f"{api_url}/libraries/{lib.id}", json=lib.dict(), headers=BASE_HEADERS, timeout=API_TIMEOUT)
+    resp.raise_for_status()
+    return Library.parse_obj(resp.json())
 
-    @save_btn.click(inputs=[state], outputs=[output])
-    def save_all(libraries):
-        total = sum(len(docs) for docs in libraries.values())
 
-        # TODO: For now, we will literally just add every library that is added via Gradio UI.
-        # In the future, we will add the ability to modify and delete. Will need to account for those scenarios
-        # and call appropriate API as well.
-        for library in global_libraries.values():
-            requests.post(api_url + "/libraries", library.model_dump_json())
-        return f"Saving {len(libraries)} libraries and {total} documents."
+def delete_library(api_url: str, lib_id: str):
+    resp = requests.delete(f"{api_url}/libraries/{lib_id}", timeout=API_TIMEOUT)
+    resp.raise_for_status()
+    return resp.json()
 
-demo.launch()
+
+def add_chunk(api_url: str, lib_id: str, doc_id: str, text: str) -> TextChunk:
+    payload = TextChunk(text = text, metadata={})
+    resp = requests.post(f"{api_url}/libraries/{lib_id}/{doc_id}/chunks", payload.json(), timeout=API_TIMEOUT)
+    resp.raise_for_status()
+
+
+def update_chunk(api_url: str, lib_id: str, doc_id: str, chunk: TextChunk) -> TextChunk:
+    resp = requests.put(
+        f"{api_url}/libraries/{lib_id}/{doc_id}/chunks/{chunk.id}", json=chunk.dict(), timeout=API_TIMEOUT
+    )
+    resp.raise_for_status()
+    if resp.json() is not True:
+        print("API failed when updating chunk.")
+
+
+def delete_chunk(api_url: str, lib_id: str, chunk_id: str):
+    resp = requests.delete(f"{api_url}/libraries/{lib_id}/chunks/{chunk_id}", timeout=API_TIMEOUT)
+    resp.raise_for_status()
+    return resp.json()
+
+# Streamlit UI
+st.set_page_config(page_title="Library Manager", layout="wide")
+st.title("📚 Library Manager")
+
+# API URL input
+api_url = st.text_input("API Base URL", value="http://localhost:8000")
+
+# Sidebar: Create new library
+with st.sidebar.expander("➕ Create New Library", expanded=True):
+    new_lib_name = st.text_input("Library Name", key="new_lib_name")
+    if st.button("Create Library"):
+        lib = Library(metadata={"name": new_lib_name}, documents={})
+        try:
+            create_library(api_url, lib)
+            st.success("Library created successfully!")
+            st.rerun()
+        except Exception as e:
+            st.error(f"Failed to create library: {e}")
+
+# Refresh
+if st.button("🔄 Refresh Libraries"):
+    st.rerun()
+
+# Fetch libraries
+try:
+    libraries = fetch_libraries(api_url)
+except Exception as e:
+    st.error(f"Could not fetch libraries: {e}")
+    libraries = []
+
+# Display each library
+for lib in libraries:
+    with st.expander(f"Library: {lib.metadata.get('name')} (ID: {lib.id})", expanded=False):
+        # Library controls
+        col1, col2 = st.columns([3,1])
+        lib_name = col1.text_input("Library Name", value=lib.metadata.get('name',''), key=f"lib_name_{lib.id}")
+        if col1.button("Save Library", key=f"save_lib_{lib.id}"):
+            try:
+                lib.metadata['name'] = lib_name
+                update_library(api_url, lib)
+                st.success("Library updated")
+                st.rerun()
+            except Exception as e:
+                st.error(f"Error saving library: {e}")
+        if col2.button("Delete Library", key=f"del_lib_{lib.id}"):
+            try:
+                delete_library(api_url, lib.id)
+                st.success("Library deleted")
+                st.rerun()
+            except Exception as e:
+                st.error(f"Error deleting library: {e}")
+
+        st.markdown("---")
+        # Add Document section
+        st.subheader("➕ Add Document")
+        new_doc_name = st.text_input("Document Name", key=f"new_doc_name_{lib.id}")
+        if st.button("Add Document", key=f"add_doc_{lib.id}"):
+            # Append empty chunks
+            doc = Document(metadata={"name": new_doc_name}, chunks={})
+            lib.documents[doc.id] = doc
+            try:
+                update_library(api_url, lib)
+                st.success("Document added")
+                st.rerun()
+            except Exception as e:
+                st.error(f"Error adding document: {e}")
+
+        # List documents
+        for doc in lib.documents.values():
+            with st.container():
+                st.markdown(f"### Document: {doc.metadata.get('name')} (ID: {doc.id})")
+                # Add Chunk for this document
+                new_chunk = st.text_input("New Chunk Text", key=f"new_chunk_text_{doc.id}")
+                if st.button("Add Chunk", key=f"add_chunk_{doc.id}"):
+                    try:
+                        add_chunk(api_url, lib.id, doc.id, new_chunk)
+                        st.success("Chunk added")
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Error adding chunk: {e}")
+
+                # List chunks
+                for chunk in doc.chunks.values():
+                    txt = st.text_area("Chunk Text", value=chunk.text, key=f"chunk_{chunk.id}")
+                    c1, c2 = st.columns(2)
+                    if c1.button("Save Chunk", key=f"save_chunk_{chunk.id}"):
+                        try:
+                            chunk.text = st.session_state[f"chunk_{chunk.id}"]
+                            update_chunk(api_url, lib.id, doc.id, chunk)
+                            st.success("Chunk updated")
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"Error updating chunk: {e}")
+                    if c2.button("Delete Chunk", key=f"del_chunk_{chunk.id}"):
+                        try:
+                            delete_chunk(api_url, lib.id, chunk.id)
+                            st.success("Chunk deleted")
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"Error deleting chunk: {e}")
+                st.markdown("---")

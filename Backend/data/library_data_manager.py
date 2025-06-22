@@ -55,6 +55,9 @@ class LibraryDataManager:
             raise HTTPException(status_code=404, detail="Library not found")
         return self.cache[library_id]
     
+    def get_all_libraries(self):
+        return self.cache.values()
+    
     def update_library(self, updated_library : Library):
         if updated_library.id not in self.cache:
                 raise HTTPException(status_code=404, detail="Library not found")
@@ -88,7 +91,7 @@ class LibraryDataManager:
         if new_docs:
             self.documentHandler.handle_add_documents(updated_library.id, new_docs)
         if updated_chunks:
-            self.db.execute_proc("pr_batch_update_chunks.sql", updated_chunks)
+            self.db.execute_proc("pr_batch_update_chunks.sql", [updated_chunks])
         if new_chunks:
             self.chunkHandler.handle_add_chunks(self.embedder, new_chunks)
         return updated_library
@@ -139,6 +142,19 @@ class LibraryDataManager:
         
         return False
     
+    def update_chunk(self, library_id : str, document_id : str, chunk_id : str, chunk : TextChunk):
+
+        chunk.embeddings = self.embedder.embed(chunk.text)
+        
+        # Update cache.
+        self.cache[library_id].documents[document_id].chunks[chunk_id] = chunk
+
+        # Update DB.
+        self.db.execute_proc("pr_batch_update_chunks.sql", [(chunk.text, pickle.dumps(chunk.embeddings), str(chunk.metadata), chunk_id)])
+
+        # Update indexing
+        self.index_handler.update_chunk(library_id, document_id, chunk)
+
     def delete_chunk(self, library_id : str, chunk_id : str):
         library = self.cache.get(library_id)
         if not library:

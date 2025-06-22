@@ -24,6 +24,7 @@ class InvertedIndex:
     
     def delete_chunk(self, term : str, chunk_id : str) -> bool:
         try:
+            if term.lower() not in self.index: return False
             # Remove doc id from our set.
             for _, doc_id, cid in self.index[term.lower()]:
                 if cid == chunk_id:

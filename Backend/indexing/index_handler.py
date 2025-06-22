@@ -32,6 +32,16 @@ class IndexHandler():
         self.lsh.delete_chunk(chunk.id, chunk.embeddings)
         self.inverted.delete_chunk(chunk.text, chunk.id)
     
+    def add_chunk(self, library_id : str, document_id : str, chunk : TextChunk):
+        self.lsh.add_chunk(library_id, document_id, chunk)
+        self.inverted.add_chunk(library_id, document_id, chunk)
+    
+    def update_chunk(self, library_id : str, document_id : str, chunk : TextChunk):
+        self.lsh.delete_chunk(chunk.id, chunk.embeddings)
+        self.inverted.delete_chunk(chunk.text, chunk.id)
+
+        self.add_chunk(library_id, document_id, chunk)
+    
     # TODO: If we are considering time vs memory, storing the lib and doc ids as a separate hash might be preferred over the for loop.
     def delete_library(self, library : Library):
         for _, doc in library.documents.items():

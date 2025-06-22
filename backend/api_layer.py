@@ -1,8 +1,8 @@
 from fastapi import FastAPI, Path, Body
 from typing import List, Dict, Union
+import traceback
 
 from Common.schemas.text_chunk import TextChunk
-from Common.schemas.document import Document
 from Common.schemas.library import Library
 
 from Backend.data.library_data_manager import LibraryDataManager
@@ -22,8 +22,12 @@ def create_library(library: Library):
     return library_manager.add_new_library(library)
 
 @app.get("/libraries/{library_id}", response_model=Library)
-def get_library(library_id: str = Path(..., description="ID of the library to retrieve")):
+def get_library_by_id(library_id: str = Path(..., description="ID of the library to retrieve")):
     return library_manager.get_library(library_id)
+
+@app.get("/libraries", response_model=List[Library])
+def get_library():
+    return library_manager.get_all_libraries()
 
 @app.put("/libraries/{library_id}", response_model=Library)
 def update_library(updated_library: Library):
@@ -36,6 +40,15 @@ def delete_library(library_id: str):
 @app.post("/libraries/{library_id}/{document_id}/chunks", response_model=bool)
 def add_chunk_to_library(library_id: str, document_id : str, chunk: TextChunk):
     return library_manager.add_chunk(library_id, document_id, chunk)
+
+@app.put("/libraries/{library_id}/{document_id}/chunks/{chunk_id}", response_model=bool)
+def update_chunk(library_id : str, document_id : str, chunk_id : str, chunk :TextChunk):
+    try:
+        library_manager.update_chunk(library_id, document_id, chunk_id, chunk)
+        return True
+    except:
+        print(f"API failed with exception: {traceback.extract_stack()}")
+        return False
 
 @app.delete("/libraries/{library_id}/chunks/{chunk_id}")
 def delete_chunk_from_library(library_id: str, chunk_id: str):
@@ -53,25 +66,3 @@ def search_chunks_from_text(
 
 if __name__ == '__main__':
     library_manager.test_insert()
-
-    # document = Document(metadata={"name" : ""})
-    # chunk = TextChunk(metadata={"name" : ""})
-
-    # libraryHandler = AddLibraryHandler(db)
-    # libraryHandler.handle_add_library(library)
-    # print(f"Library Insert Result: {db.fetch('SELECT * FROM libraries;')}")
-
-    # documentHandler = AddDocumentHandler(library.id, db)
-    # documentHandler.handle_add_document(document)
-    # print(f"Document Insert Result: {db.fetch('SELECT * FROM documents;')}")
-
-    # chunkHandler = AddChunkHandler(library.id, document.id, db)
-    # chunkHandler.handle_add_chunk(chunk)
-    # print(f"Chunk Insert Result: {db.fetch('SELECT * FROM chunks;')}")
-
-
-
-    # json = Library(metadata={"name" : ""})
-    # print(f"json: {json}")
-    # db.execute_proc("pr_batch_insert_libraries.sql", [(json.id, str(json.metadata))])
-    # print(f"Result: {db.fetch('SELECT * FROM libraries;')}")

@@ -3,4 +3,4 @@ cohere
 pydantic
 fastapi
 sentence_transformers
-gradio
+streamlit
