@@ -4,5 +4,3 @@ pydantic
 fastapi
 sentence_transformers
 uvicorn[standard]
-requests
-streamlit

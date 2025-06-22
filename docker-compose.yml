@@ -1,0 +1,26 @@
+version: "3.8"
+services:
+  
+  api:
+    build:
+      context: .
+      dockerfile: Backend/Dockerfile
+    container_name: vectordb_api
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+
+  ui:
+    build:
+      context: Frontend/SimpleUI
+      dockerfile: Dockerfile
+    container_name: vectordb_ui
+    ports:
+      - "8501:8501"
+    environment:
+      - STREAMLIT_SERVER_ENABLECORS=false
+      # point your Streamlit to the API container by name:
+      - API_URL=http://api:8000
+    depends_on:
+      - api
+    restart: unless-stopped
