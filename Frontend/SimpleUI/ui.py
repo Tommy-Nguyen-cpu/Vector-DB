@@ -31,6 +31,10 @@ def fetch_libraries(api_url: str) -> List[Library]:
     resp.raise_for_status()
     return [Library.parse_obj(d) for d in resp.json()]
 
+def fetch_library(lib_id: str, api_url: str) -> Library:
+    resp = requests.get(f"{api_url}/libraries/{lib_id}", timeout=API_TIMEOUT)
+    resp.raise_for_status()
+    return Library.parse_obj(resp.json())
 
 def create_library(api_url: str, lib: Library) -> Library:
     resp = requests.post(f"{api_url}/libraries", json=lib.dict(), headers=BASE_HEADERS, timeout=API_TIMEOUT)
@@ -171,3 +175,35 @@ for lib in libraries:
                         except Exception as e:
                             st.error(f"Error deleting chunk: {e}")
                 st.markdown("---")
+
+st.sidebar.header("Fetch Library by ID")
+fetch_id = st.sidebar.text_input("Library ID", key="fetch_id")
+if st.sidebar.button("Fetch Library"):
+    try:
+        lib = fetch_library(fetch_id, api_url)
+    except Exception as e:
+        st.sidebar.error(f"Failed to fetch: {e}")
+        st.stop()
+
+    # --- TOP LEVEL: one tab per library (just one here) ---
+    tabs = st.tabs([f"{lib.metadata.get('name', lib.id)}"])
+    lib_tab = tabs[0]
+
+    with lib_tab:
+        st.markdown(f"**Library ID:** {lib.id}")
+        st.json(lib.metadata)
+
+        # --- SECOND LEVEL: one expander per document ---
+        for doc in lib.documents.values():
+            with st.expander(f"Document: {doc.metadata.get('title', doc.id)}"):
+                st.markdown(f"- **Doc ID:** {doc.id}")
+                st.json(doc.metadata)
+
+                # --- INLINE chunk list (no further expanders!) ---
+                st.markdown("**Chunks**")
+                for chunk in doc.chunks.values():
+                    st.text_area(
+                        label=f"Chunk {chunk.id[:8]} text", 
+                        value=chunk.text, 
+                        key=f"text_{chunk.id}"
+                    )
