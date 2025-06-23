@@ -5,9 +5,9 @@ import traceback
 from Common.schemas.text_chunk import TextChunk
 from Common.schemas.library import Library
 
-from Backend.data.library_data_manager import LibraryDataManager
+from data.library_data_manager import LibraryDataManager
 
-from .api_requests.query_request import QueryRequest
+from api_requests.query_request import QueryRequest
 
 app = FastAPI()
 

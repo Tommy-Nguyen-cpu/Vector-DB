@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+
+# Virtual environments
+venv/
+.env/
+*.env
+
+# OS junk
+.DS_Store
+Thumbs.db
+
+# Git & build artifacts
+.git/
+.gitignore
+*.log
+
+# IDEs
+.vscode/
+.idea/
+
+# Streamlit & FastAPI artifacts
+.mypy_cache/
+.pytest_cache/
+
+# Dockerfiles & Docker compose will still work because we COPY explicitly
+docker-compose.yml

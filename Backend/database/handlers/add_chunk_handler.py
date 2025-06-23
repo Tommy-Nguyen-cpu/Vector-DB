@@ -1,8 +1,8 @@
 from typing import Dict, List
 import pickle
 
-from Backend.database.database_obj import DB
-from Backend.utils.embedder import SentenceTransformerEmbedder
+from database.database_obj import DB
+from utils.embedder import SentenceTransformerEmbedder
 
 from Common.schemas.text_chunk import TextChunk
 

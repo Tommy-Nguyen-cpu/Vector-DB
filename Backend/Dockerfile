@@ -3,7 +3,7 @@ FROM python:3.12-slim
 
 # 2. Set workdir, copy only requirements and install (cache benefit)
 WORKDIR /app
-COPY requirements.txt .
+COPY Backend/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # 3. Copy application code (including Common/)

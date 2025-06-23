@@ -5,10 +5,6 @@ from typing import List
 import sys
 from pathlib import Path
 
-# Point at the VectorDB folder two levels above this file
-project_root = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(project_root))
-
 from Common.schemas.library import Library
 from Common.schemas.document import Document
 from Common.schemas.text_chunk import TextChunk

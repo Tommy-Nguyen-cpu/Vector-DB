@@ -3,12 +3,12 @@ FROM python:3.12-slim
 
 # 2. Workdir and install Streamlit + requests + Common dep
 WORKDIR /app
-COPY requirements.txt .
+COPY Frontend/SimpleUI/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # 3. Copy the UI code and shared schemas
-COPY app.py .
-COPY ../../Common ../Common
+COPY Frontend/SimpleUI/ui.py .
+COPY ../../Common ./Common
 
 # 4. Expose Streamlit port
 EXPOSE 8501

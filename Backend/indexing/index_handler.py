@@ -1,8 +1,8 @@
 from typing import List
 
-from Backend.indexing.inverted_index import InvertedIndex
-from Backend.indexing.lsh_index import LSHIndex
-from Backend.utils.embedder import BaseEmbedder
+from indexing.inverted_index import InvertedIndex
+from indexing.lsh_index import LSHIndex
+from utils.embedder import BaseEmbedder
 
 from Common.schemas.library import Library
 from Common.schemas.text_chunk import TextChunk

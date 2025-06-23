@@ -1,7 +1,7 @@
 from typing import List, Dict, Tuple
 import random
 
-from Backend.utils.mathUtils import dot_prod, cosine_similarity
+from utils.mathUtils import dot_prod, cosine_similarity
 from Common.schemas.text_chunk import TextChunk
 
 class LSHIndex:

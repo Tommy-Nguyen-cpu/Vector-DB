@@ -2,17 +2,17 @@ from typing import Dict, List
 from fastapi import HTTPException
 import pickle
 
-from Backend.database.database_obj import DB
-from Backend.database.handlers.add_library_handler import AddLibraryHandler
-from Backend.database.handlers.add_document_handler import AddDocumentHandler
-from Backend.database.handlers.add_chunk_handler import AddChunkHandler
+from database.database_obj import DB
+from database.handlers.add_library_handler import AddLibraryHandler
+from database.handlers.add_document_handler import AddDocumentHandler
+from database.handlers.add_chunk_handler import AddChunkHandler
 
-from Backend.api_requests.query_request import QueryRequest
+from api_requests.query_request import QueryRequest
 
-from Backend.indexing.index_handler import IndexHandler
-from Backend.utils.embedder import SentenceTransformerEmbedder
-from Backend.utils.mathUtils import cosine_similarity
-from Backend.utils.commonUtils import get_docid_chunk_dict
+from indexing.index_handler import IndexHandler
+from utils.embedder import SentenceTransformerEmbedder
+from utils.mathUtils import cosine_similarity
+from utils.commonUtils import get_docid_chunk_dict
 
 from Common.schemas.library import Library
 from Common.schemas.document import Document

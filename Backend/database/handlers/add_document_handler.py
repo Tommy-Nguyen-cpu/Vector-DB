@@ -1,5 +1,5 @@
 from typing import List
-from Backend.database.database_obj import DB
+from database.database_obj import DB
 
 from Common.schemas.document import Document
 
