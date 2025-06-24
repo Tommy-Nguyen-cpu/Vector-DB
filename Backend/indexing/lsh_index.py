@@ -8,7 +8,7 @@ class LSHIndex:
     """
     Approximate nearest neighbor via random hyperplane locality-sensitive hashing.
     """
-    def __init__(self, num_planes: int = 10):
+    def __init__(self, num_planes: int = 3):
         self.num_planes = num_planes
         self.planes: List[List[float]] = [] # Holds all embeddings.
         self.buckets: Dict[str, Set[Tuple[str, str]]] = {} # Holds mapping between unique bits to ids.
