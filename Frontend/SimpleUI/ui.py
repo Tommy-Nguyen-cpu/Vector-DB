@@ -1,6 +1,6 @@
 import streamlit as st
 import requests
-from typing import List
+from typing import List, Union, Dict
 
 import sys
 from pathlib import Path
@@ -8,6 +8,7 @@ from pathlib import Path
 from Common.schemas.library import Library
 from Common.schemas.document import Document
 from Common.schemas.text_chunk import TextChunk
+from Common.api_requests.query_request import QueryRequest
 
 # API Url
 api_url = "http://127.0.0.1:8000"
@@ -203,3 +204,50 @@ if st.sidebar.button("Fetch Library"):
                         value=chunk.text, 
                         key=f"text_{chunk.id}"
                     )
+
+st.header("🔍 Search Chunks by Text")
+
+with st.form("search_form"):
+    query_text = st.text_input("Search query", key="query_text")
+    top_k = st.number_input("Top K results", min_value=1, max_value=50, value=5, step=1)
+    submitted = st.form_submit_button("Search")
+
+if submitted:
+    payload = {
+        "query": query_text,
+        "top_k": top_k
+    }
+
+    try:
+        resp = requests.post(f"{api_url}/libraries/search", json=payload, timeout=5)
+        resp.raise_for_status()
+        raw_results: List[Dict[str, Union[dict, float]]] = resp.json()
+
+        st.success(f"Found {len(raw_results)} results")
+
+        for idx, result in enumerate(raw_results):
+            chunk_data = result["0"] if "0" in result else result.get("text_chunk", result.get("chunk", None))
+            score = result.get("1") if "1" in result else result.get("score", None)
+
+            try:
+                chunk = TextChunk.parse_obj(chunk_data)
+            except Exception:
+                st.warning(f"Could not parse chunk: {chunk_data}")
+                continue
+
+            with st.expander(f"Result {idx+1} - Score: {score:.4f}" if score is not None else f"Result {idx+1}"):
+                st.markdown("**Chunk Text**")
+                st.code(chunk.text, language="markdown")
+                st.markdown("**Metadata**")
+                st.json(chunk.metadata)
+                st.markdown("**Embeddings**")
+                st.write(chunk.embeddings[:10])  # optionally show top N dims only
+
+    except requests.exceptions.HTTPError as e:
+        try:
+            detail = resp.json()
+        except ValueError:
+            detail = resp.text
+        st.error(f"HTTP error {resp.status_code}: {detail}")
+    except Exception as e:
+        st.error(f"Unexpected error: {e}")

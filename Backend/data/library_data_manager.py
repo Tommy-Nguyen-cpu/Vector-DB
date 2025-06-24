@@ -7,7 +7,7 @@ from database.handlers.add_library_handler import AddLibraryHandler
 from database.handlers.add_document_handler import AddDocumentHandler
 from database.handlers.add_chunk_handler import AddChunkHandler
 
-from api_requests.query_request import QueryRequest
+from Common.api_requests.query_request import QueryRequest
 
 from indexing.index_handler import IndexHandler
 from utils.embedder import SentenceTransformerEmbedder
@@ -91,7 +91,7 @@ class LibraryDataManager:
         if new_docs:
             self.documentHandler.handle_add_documents(updated_library.id, new_docs)
         if updated_chunks:
-            self.db.execute_proc("pr_batch_update_chunks.sql", [updated_chunks])
+            self.db.execute_proc("pr_batch_update_chunks.sql", updated_chunks)
         if new_chunks:
             self.chunkHandler.handle_add_chunks(self.embedder, new_chunks)
         return updated_library
@@ -133,7 +133,7 @@ class LibraryDataManager:
         if not library.documents:
             raise HTTPException(status_code=400, detail="No documents in library to add chunk to")
         
-        self.index_handler.index_library(library)
+        self.index_handler.add_chunk(library_id, document_id, chunk)
         for _, document in library.documents.items():
             if document_id == document.id:
                 document.chunks.setdefault(chunk.id, chunk)

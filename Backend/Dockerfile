@@ -12,7 +12,6 @@ COPY Backend/utils ./utils
 COPY Backend/indexing ./indexing
 COPY Backend/database ./database
 COPY Backend/data ./data
-COPY Backend/api_requests ./api_requests
 COPY Backend/api_layer.py .
 
 # 4. Expose FastAPI port

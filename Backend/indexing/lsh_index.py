@@ -1,4 +1,4 @@
-from typing import List, Dict, Tuple
+from typing import List, Dict, Tuple, Set
 import random
 
 from utils.mathUtils import dot_prod, cosine_similarity
@@ -11,7 +11,7 @@ class LSHIndex:
     def __init__(self, num_planes: int = 10):
         self.num_planes = num_planes
         self.planes: List[List[float]] = [] # Holds all embeddings.
-        self.buckets: Dict[str, List[Tuple[str, str]]] = {} # Holds mapping between unique bits to ids.
+        self.buckets: Dict[str, Set[Tuple[str, str]]] = {} # Holds mapping between unique bits to ids.
         self.docs = set()
 
         # Will initialize planes when first embedding arrives
@@ -32,11 +32,13 @@ class LSHIndex:
     def add_chunk(self, library_id : str, doc_id: str, chunk: TextChunk):
         h = self._hash(chunk.embeddings)
         self.docs.add(doc_id)
-        self.buckets.setdefault(h, []).append((library_id, doc_id, chunk.id)) # Stores bits as unique identifier in buckets.
+        self.buckets.setdefault(h, set([])).add((library_id, doc_id, chunk.id)) # Stores bits as unique identifier in buckets.
 
-    def query_bucket(self, query_emb: List[float]) -> List[Tuple[str, str, str]]:
+    def query_bucket(self, query_emb: List[float]) -> Set[Tuple[str, str, str]]:
         h = self._hash(query_emb) # Gets the unique identifier for the bucket.
-        return self.buckets.get(h, [])
+        print(f"Bucket of size: {len(self.buckets)}")
+        print(f"Result: {self.buckets.get(h, [])}")
+        return self.buckets.get(h, set([]))
     
     def delete_chunk(self, chunk_id : str, embedding : List[float]):
         hash_code = self._hash(embedding)
@@ -48,10 +50,10 @@ class LSHIndex:
                     break
 
             # Filter bucket, remove any content with the specific chunk id.
-            self.buckets[hash_code] = [(lib, doc, cid)
+            self.buckets[hash_code] = set([(lib, doc, cid)
             for (lib, doc, cid) in self.buckets[hash_code]
             if cid != chunk_id
-            ]
+            ])
         
             self.clean_up(hash_code)
     

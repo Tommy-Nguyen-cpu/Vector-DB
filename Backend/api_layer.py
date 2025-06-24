@@ -7,7 +7,7 @@ from Common.schemas.library import Library
 
 from data.library_data_manager import LibraryDataManager
 
-from api_requests.query_request import QueryRequest
+from Common.api_requests.query_request import QueryRequest
 
 app = FastAPI()
 
