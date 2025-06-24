@@ -227,7 +227,7 @@ if submitted:
 
         for idx, result in enumerate(raw_results):
             chunk_data = result["0"] if "0" in result else result.get("text_chunk", result.get("chunk", None))
-            score = result.get("1") if "1" in result else result.get("score", None)
+            score = result.get("1") if "1" in result else result.get("similarity", None)
 
             try:
                 chunk = TextChunk.parse_obj(chunk_data)
